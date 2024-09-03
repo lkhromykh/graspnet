@@ -1,0 +1,15 @@
+name: graspnet
+channels:
+  - defaults
+dependencies:
+  - python=3.8
+  - pip
+  - numpy=1.22  # numpy.typing.NDArray
+  - opencv
+  - pytorch::pytorch=1.6.0
+  - pytorch::torchvision=0.7.0
+  - pip:
+      - -r ./graspnet-baseline/requirements.txt
+      - ./graspnet-baseline/pointnet2 # this one requires nvidia-runtime on build
+      - ./graspnet-baseline/knn
+      - ./graspnetAPI
