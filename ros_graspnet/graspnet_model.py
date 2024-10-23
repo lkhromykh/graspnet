@@ -37,6 +37,7 @@ class GraspNetModel:
     def __post_init__(self):
         self._device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self._net = get_net(self.checkpoint_path, self.num_view, self._device)
+        self._retry = 0
 
     def __call__(self, obs: Dict[str, Array]):
         cloud_sampled, color_sampled, o3d_cloud = get_and_process_data(
@@ -51,9 +52,13 @@ class GraspNetModel:
         gg = GraspGroup(gg_array)
         gg = collision_detection(gg, np.asarray(o3d_cloud.points), self.collision_thresh, self.voxel_size)
         gg.nms()
+        if len(gg) == 0 and self._retry < 2:
+            self._retry += 1
+            logging.info(f'Found 0 grasps. Trying again {self._retry}')
+            gg, o3d_cloud, action = self(obs)
+        self._retry = 0
         gg.sort_by_score()
         gg, o3d_cloud = transform_fn(gg, o3d_cloud, obs['optical_frame'])
-        logging.info("Found %d grasps" % len(gg))
         action = infer_action(gg)
         return gg, o3d_cloud, action
 
@@ -92,7 +97,7 @@ def get_and_process_data(color: Array,
     assert color.ndim == 3
     assert depth.ndim == 2
     assert cloud.ndim == 3
-    assert color.shape[:2] == depth.shape == cloud.shape[:2]
+    # assert color.shape[:2] == depth.shape == cloud.shape[:2]
 
     color = color.astype(np.float32) / 255.
     mask = (0 < depth) & (depth < 1000)
@@ -125,8 +130,7 @@ def collision_detection(
         return gg
     mfcdetector = ModelFreeCollisionDetector(cloud, voxel_size=voxel_size)
     collision_mask = mfcdetector.detect(gg, approach_dist=0.05, collision_thresh=collision_thresh)
-    gg = gg[~collision_mask]
-    return gg
+    return gg[~collision_mask]
 
 
 def transform_fn(gg: GraspGroup, cloud, transform: Array):
@@ -138,10 +142,13 @@ def transform_fn(gg: GraspGroup, cloud, transform: Array):
     return gg.transform(rigid), cloud.transform(rigid)
 
 
+# todo: handle rotation opposite rotations of z-axis
 def infer_action(gg: GraspGroup) -> Array:
     # pick the best
     g = gg[0]
     trans = g.translation
     rot = g.rotation_matrix
-    rot = Rotation.from_matrix(rot).as_quat()
+    rot = Rotation.from_matrix(rot)
+    rot_adj = Rotation.from_matrix([[0, 0, 1], [1, 0, 0], [0, 1, 0]])
+    rot = (rot * rot_adj).as_quat()
     return np.r_[trans, rot, 0, 0]
