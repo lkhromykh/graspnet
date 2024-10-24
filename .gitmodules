@@ -1,6 +1,6 @@
 [submodule "graspnet-baseline"]
 	path = graspnet-baseline
-	url = https://github.com/graspnet/graspnet-baseline.git
+	url = https://github.com/TB5z035/graspnet-baseline.git
 [submodule "graspnetAPI"]
 	path = graspnetAPI
 	url = https://github.com/graspnet/graspnetAPI.git

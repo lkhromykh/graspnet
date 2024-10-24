@@ -37,8 +37,9 @@ def main(cfg):
             if input() != "y":
                 continue
             action[-2] = 1
-            ts = env.step(action)
-            print('Is object detected: ', ts.observation['gripper_is_obj_detected'])
+            obs = env.step(action).observation
+            if obs['gripper_is_obj_detected']:
+                put_in_box(env)
     except KeyboardInterrupt:
         env.close()
 
@@ -51,6 +52,11 @@ def env_reset(env_):
     # action[2] += 0.1
     # return env_.step(action)
     return env_.reset()
+
+
+def put_in_box(env_):
+    above_box = [-0.33, 0.1, 0.2, 0.707, 0.707, 0, 0, 0, 1]
+    env_.step(above_box)
 
 
 if __name__ == '__main__':
